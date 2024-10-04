@@ -1,5 +1,11 @@
 # livekit-agents
 
+## 0.10.1
+
+### Patch Changes
+
+- Fix bug where empty audio would cause agent to get stuck. - [`8b45241402bc2540ef7a9174212b92c3268a679f`](https://github.com/livekit/agents/commit/8b45241402bc2540ef7a9174212b92c3268a679f) ([@martin-purplefish](https://github.com/martin-purplefish))
+
 ## 0.10.0
 
 ### Minor Changes
