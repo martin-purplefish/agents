@@ -248,6 +248,7 @@ class VoicePipelineAgent(utils.EventEmitter[EventTypes]):
         self._last_end_of_speech_time: float | None = None
 
         self._update_state_task: asyncio.Task | None = None
+        self._last_human_speech_time: float | None = None
 
     @property
     def fnc_ctx(self) -> FunctionContext | None:
@@ -398,6 +399,7 @@ class VoicePipelineAgent(utils.EventEmitter[EventTypes]):
             self._plotter.plot_event("user_started_speaking")
             self.emit("user_started_speaking")
             self._deferred_validation.on_human_start_of_speech(ev)
+            self._last_human_speech_time = time.time()
 
         def _on_vad_updated(ev: vad.VADEvent) -> None:
             if not self._track_published_fut.done():
@@ -417,6 +419,7 @@ class VoicePipelineAgent(utils.EventEmitter[EventTypes]):
             self._plotter.plot_value("vad_probability", ev.probability)
 
             if ev.speech_duration >= self._opts.int_speech_duration:
+                self._last_human_speech_time = time.time()
                 self._interrupt_if_possible()
 
         def _on_end_of_speech(ev: vad.VADEvent) -> None:
@@ -424,6 +427,7 @@ class VoicePipelineAgent(utils.EventEmitter[EventTypes]):
             self.emit("user_stopped_speaking")
             self._deferred_validation.on_human_end_of_speech(ev)
             self._last_end_of_speech_time = time.time()
+            self._last_human_speech_time = time.time()
 
         def _on_interim_transcript(ev: stt.SpeechEvent) -> None:
             self._transcribed_interim_text = ev.alternatives[0].text
@@ -494,8 +498,19 @@ class VoicePipelineAgent(utils.EventEmitter[EventTypes]):
 
             while self._speech_q:
                 speech = self._speech_q[0]
-                self._playing_speech = speech
-                await self._play_speech(speech)
+                logger.debug(
+                    f"Playing speech: {speech.id} (enqueued for {time.time() - speech._created_at:.2f}s) {speech.user_question[:20]}"
+                )
+                if (
+                    self._last_human_speech_time is None
+                    or self._last_human_speech_time < speech._created_at
+                ):
+                    self._playing_speech = speech
+                    await self._play_speech(speech)
+                else:
+                    logger.debug(
+                        f"Not playing speech: {speech.id} (enqueued for {time.time() - speech._created_at:.2f}s) {speech.user_question[:20]}"
+                    )
                 self._speech_q.pop(0)  # Remove the element only after playing
                 self._playing_speech = None
 
@@ -505,17 +520,28 @@ class VoicePipelineAgent(utils.EventEmitter[EventTypes]):
         """Synthesize the agent reply to the user question, also make sure only one reply
         is synthesized/played at a time"""
 
+        if self._agent_reply_task is not None:
+            self._agent_reply_task.cancel()
+            self._agent_reply_task = None
+
         if self._pending_agent_reply is not None:
-            if not self._pending_agent_reply.allow_interruptions:
-                logger.debug(
-                    "ignoring reply synthesis since interruptions are not allowed"
-                )
+            self._pending_agent_reply.interrupt(force=True)
+            self._pending_agent_reply = None
+
+        # Clear the speech queue
+        for speech in self._speech_q:
+            if speech.allow_interruptions:
+                speech.interrupt()
+
+        self._speech_q.clear()
+        self._speech_q_changed.set()
+
+        if self._human_input is not None:
+            if self._human_input.speaking:
+                logger.debug("Human is speaking, delaying reply")
                 return False
-
-            self._pending_agent_reply.interrupt()
-
-        if self._human_input is not None and not self._human_input.speaking:
-            self._update_state("thinking", 0.2)
+            else:
+                self._update_state("thinking")
 
         self._pending_agent_reply = new_handle = SpeechHandle.create_assistant_reply(
             allow_interruptions=self._opts.allow_interruptions,
@@ -524,7 +550,7 @@ class VoicePipelineAgent(utils.EventEmitter[EventTypes]):
         )
 
         self._agent_reply_task = asyncio.create_task(
-            self._synthesize_answer_task(self._agent_reply_task, new_handle)
+            self._synthesize_answer_task(None, new_handle)
         )
 
         return True
@@ -557,6 +583,7 @@ class VoicePipelineAgent(utils.EventEmitter[EventTypes]):
 
         llm_stream = self._opts.before_llm_cb(self, copied_ctx)
         if llm_stream is False:
+            handle.interrupt(force=True)
             return
 
         if asyncio.iscoroutine(llm_stream):
@@ -602,6 +629,7 @@ class VoicePipelineAgent(utils.EventEmitter[EventTypes]):
 
         user_question = speech_handle.user_question
 
+        # Play the speech and wait for it to finish
         play_handle = synthesis_handle.play()
         join_fut = play_handle.join()
 
@@ -843,6 +871,7 @@ class VoicePipelineAgent(utils.EventEmitter[EventTypes]):
 
     def _add_speech_for_playout(self, speech_handle: SpeechHandle) -> None:
         self._speech_q.append(speech_handle)
+        logger.debug(f"Added speech to playout queue: {speech_handle.id}")
         self._speech_q_changed.set()
 
 
