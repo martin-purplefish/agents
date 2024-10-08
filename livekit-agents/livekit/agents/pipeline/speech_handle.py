@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from typing import AsyncIterable
 
 from .. import utils
@@ -34,6 +35,11 @@ class SpeechHandle:
         # source and synthesis_handle are None until the speech is initialized
         self._source: str | LLMStream | AsyncIterable[str] | None = None
         self._synthesis_handle: SynthesisHandle | None = None
+        self._created_at = time.time()
+
+    @property
+    def created_at(self) -> float:
+        return self._created_at
 
     @staticmethod
     def create_assistant_reply(

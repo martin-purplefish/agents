@@ -503,7 +503,7 @@ class VoicePipelineAgent(utils.EventEmitter[EventTypes]):
                 )
                 if (
                     self._last_human_speech_time is None
-                    or self._last_human_speech_time < speech._created_at
+                    or self._last_human_speech_time < speech.created_at
                 ):
                     self._playing_speech = speech
                     await self._play_speech(speech)
