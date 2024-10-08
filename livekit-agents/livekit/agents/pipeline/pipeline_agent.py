@@ -434,6 +434,9 @@ class VoicePipelineAgent(utils.EventEmitter[EventTypes]):
 
         def _on_final_transcript(ev: stt.SpeechEvent) -> None:
             new_transcript = ev.alternatives[0].text
+            if not new_transcript:
+                return
+
             self._transcribed_text += (
                 " " if self._transcribed_text else ""
             ) + new_transcript
@@ -532,6 +535,13 @@ class VoicePipelineAgent(utils.EventEmitter[EventTypes]):
         for speech in self._speech_q:
             if speech.allow_interruptions:
                 speech.interrupt()
+            if not self._pending_agent_reply.allow_interruptions:
+                logger.debug(
+                    "ignoring reply synthesis since interruptions are not allowed"
+                )
+                return False
+            self._pending_agent_reply.interrupt()
+
 
         self._speech_q.clear()
         self._speech_q_changed.set()
@@ -584,6 +594,7 @@ class VoicePipelineAgent(utils.EventEmitter[EventTypes]):
         llm_stream = self._opts.before_llm_cb(self, copied_ctx)
         if llm_stream is False:
             handle.interrupt(force=True)
+
             return
 
         if asyncio.iscoroutine(llm_stream):
