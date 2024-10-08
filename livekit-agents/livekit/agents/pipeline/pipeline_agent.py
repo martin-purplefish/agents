@@ -494,21 +494,21 @@ class VoicePipelineAgent(utils.EventEmitter[EventTypes]):
 
         while True:
             await self._speech_q_changed.wait()
+            speech_q = self._speech_q.copy()
+            self._speech_q.clear()
 
-            while self._speech_q:
-                speech = self._speech_q[0]
+            for speech in speech_q:
                 logger.debug(
-                    f"Playing speech: {speech.id} (enqueued for {time.time() - speech.created_at:.2f}s) {speech.user_question[:20]}"
+                    f"Playing speech: {speech.id} (enqueued for {time.time() - speech._created_at:.2f}s) {speech.user_question[:20]}"
                 )
                 if self._human_input is not None and not self._human_input.speaking:
                     self._playing_speech = speech
                     await self._play_speech(speech)
+                    self._playing_speech = None
                 else:
                     logger.debug(
-                        f"Not playing speech: {speech.id} (enqueued for {time.time() - speech.created_at:.2f}s) human is speaking"
+                        f"Not playing speech: {speech.id} (enqueued for {time.time() - speech._created_at:.2f}s) human is speaking"
                     )
-                self._speech_q.pop(0)  # Remove the element only after playing
-                self._playing_speech = None
 
             self._speech_q_changed.clear()
 
@@ -546,18 +546,13 @@ class VoicePipelineAgent(utils.EventEmitter[EventTypes]):
         )
 
         self._agent_reply_task = asyncio.create_task(
-            self._synthesize_answer_task(None, new_handle)
+            self._synthesize_answer_task(new_handle)
         )
 
         return True
 
     @utils.log_exceptions(logger=logger)
-    async def _synthesize_answer_task(
-        self, old_task: asyncio.Task[None], handle: SpeechHandle
-    ) -> None:
-        if old_task is not None:
-            await utils.aio.gracefully_cancel(old_task)
-
+    async def _synthesize_answer_task(self, handle: SpeechHandle) -> None:
         copied_ctx = self._chat_ctx.copy()
 
         playing_speech = self._playing_speech
