@@ -248,7 +248,6 @@ class VoicePipelineAgent(utils.EventEmitter[EventTypes]):
         self._last_end_of_speech_time: float | None = None
 
         self._update_state_task: asyncio.Task | None = None
-        self._last_human_speech_time: float | None = None
 
     @property
     def fnc_ctx(self) -> FunctionContext | None:
@@ -399,7 +398,6 @@ class VoicePipelineAgent(utils.EventEmitter[EventTypes]):
             self._plotter.plot_event("user_started_speaking")
             self.emit("user_started_speaking")
             self._deferred_validation.on_human_start_of_speech(ev)
-            self._last_human_speech_time = time.time()
 
         def _on_vad_updated(ev: vad.VADEvent) -> None:
             if not self._track_published_fut.done():
@@ -419,7 +417,6 @@ class VoicePipelineAgent(utils.EventEmitter[EventTypes]):
             self._plotter.plot_value("vad_probability", ev.probability)
 
             if ev.speech_duration >= self._opts.int_speech_duration:
-                self._last_human_speech_time = time.time()
                 self._interrupt_if_possible()
 
         def _on_end_of_speech(ev: vad.VADEvent) -> None:
@@ -427,7 +424,6 @@ class VoicePipelineAgent(utils.EventEmitter[EventTypes]):
             self.emit("user_stopped_speaking")
             self._deferred_validation.on_human_end_of_speech(ev)
             self._last_end_of_speech_time = time.time()
-            self._last_human_speech_time = time.time()
 
         def _on_interim_transcript(ev: stt.SpeechEvent) -> None:
             self._transcribed_interim_text = ev.alternatives[0].text
@@ -504,15 +500,12 @@ class VoicePipelineAgent(utils.EventEmitter[EventTypes]):
                 logger.debug(
                     f"Playing speech: {speech.id} (enqueued for {time.time() - speech.created_at:.2f}s) {speech.user_question[:20]}"
                 )
-                if (
-                    self._last_human_speech_time is None
-                    or self._last_human_speech_time < speech.created_at
-                ):
+                if self._human_input is not None and not self._human_input.speaking:
                     self._playing_speech = speech
                     await self._play_speech(speech)
                 else:
                     logger.debug(
-                        f"Not playing speech: {speech.id} (enqueued for {time.time() - speech.created_at:.2f}s) {speech.user_question[:20]}"
+                        f"Not playing speech: {speech.id} (enqueued for {time.time() - speech.created_at:.2f}s) human is speaking"
                     )
                 self._speech_q.pop(0)  # Remove the element only after playing
                 self._playing_speech = None
@@ -535,13 +528,6 @@ class VoicePipelineAgent(utils.EventEmitter[EventTypes]):
         for speech in self._speech_q:
             if speech.allow_interruptions:
                 speech.interrupt()
-            if not self._pending_agent_reply.allow_interruptions:
-                logger.debug(
-                    "ignoring reply synthesis since interruptions are not allowed"
-                )
-                return False
-            self._pending_agent_reply.interrupt()
-
 
         self._speech_q.clear()
         self._speech_q_changed.set()
