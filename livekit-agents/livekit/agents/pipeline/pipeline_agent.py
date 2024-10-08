@@ -499,7 +499,7 @@ class VoicePipelineAgent(utils.EventEmitter[EventTypes]):
             while self._speech_q:
                 speech = self._speech_q[0]
                 logger.debug(
-                    f"Playing speech: {speech.id} (enqueued for {time.time() - speech._created_at:.2f}s) {speech.user_question[:20]}"
+                    f"Playing speech: {speech.id} (enqueued for {time.time() - speech.created_at:.2f}s) {speech.user_question[:20]}"
                 )
                 if (
                     self._last_human_speech_time is None
@@ -509,7 +509,7 @@ class VoicePipelineAgent(utils.EventEmitter[EventTypes]):
                     await self._play_speech(speech)
                 else:
                     logger.debug(
-                        f"Not playing speech: {speech.id} (enqueued for {time.time() - speech._created_at:.2f}s) {speech.user_question[:20]}"
+                        f"Not playing speech: {speech.id} (enqueued for {time.time() - speech.created_at:.2f}s) {speech.user_question[:20]}"
                     )
                 self._speech_q.pop(0)  # Remove the element only after playing
                 self._playing_speech = None
