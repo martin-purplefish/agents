@@ -30,13 +30,16 @@ class HumanInput(utils.EventEmitter[EventTypes]):
         self,
         *,
         room: rtc.Room,
-        vad: voice_activity_detection.VAD,
+        vad: voice_activity_detection.VAD | None,
         stt: speech_to_text.STT,
         participant: rtc.RemoteParticipant,
         transcription: bool,
         speech_detection_mode: SpeechDetectionMode = SpeechDetectionMode.VAD,
     ) -> None:
         super().__init__()
+        if speech_detection_mode == SpeechDetectionMode.VAD and vad is None:
+            raise ValueError("VAD is required for SpeechDetectionMode.VAD")
+
         self._room, self._vad, self._stt, self._participant, self._transcription = (
             room,
             vad,
@@ -114,7 +117,11 @@ class HumanInput(utils.EventEmitter[EventTypes]):
         """
         Receive the frames from the user audio stream and detect voice activity.
         """
-        vad_stream = self._vad.stream()
+        if self._speech_detection_mode == SpeechDetectionMode.VAD:
+            vad_stream = self._vad.stream()
+        else:
+            vad_stream = None
+
         stt_stream = self._stt.stream()
 
         def _before_forward(
@@ -136,9 +143,14 @@ class HumanInput(utils.EventEmitter[EventTypes]):
             # forward the audio stream to the VAD and STT streams
             async for ev in audio_stream:
                 stt_stream.push_frame(ev.frame)
-                vad_stream.push_frame(ev.frame)
+
+                if vad_stream is not None:
+                    vad_stream.push_frame(ev.frame)
 
         async def _vad_stream_co() -> None:
+            if vad_stream is None:
+                return
+
             async for ev in vad_stream:
                 if ev.type == voice_activity_detection.VADEventType.START_OF_SPEECH:
                     self._vad_speaking = True

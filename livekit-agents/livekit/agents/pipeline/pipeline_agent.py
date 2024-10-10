@@ -135,7 +135,7 @@ class VoicePipelineAgent(utils.EventEmitter[EventTypes]):
     def __init__(
         self,
         *,
-        vad: vad.VAD,
+        vad: vad.VAD | None,
         stt: stt.STT,
         llm: LLM,
         tts: tts.TTS,
@@ -188,6 +188,12 @@ class VoicePipelineAgent(utils.EventEmitter[EventTypes]):
                 STT providers may not support streaming, in which case VAD is the only option.
         """
         super().__init__()
+        if vad is None:
+            if not stt.capabilities.streaming:
+                raise ValueError("STT must support streaming if no VAD is provided")
+            if speech_detection_mode == SpeechDetectionMode.VAD:
+                raise ValueError("VAD is required for SpeechDetectionMode.VAD")
+
         self._loop = loop or asyncio.get_event_loop()
 
         if will_synthesize_assistant_reply is not None:
@@ -283,7 +289,7 @@ class VoicePipelineAgent(utils.EventEmitter[EventTypes]):
         return self._stt
 
     @property
-    def vad(self) -> vad.VAD:
+    def vad(self) -> vad.VAD | None:
         return self._vad
 
     def start(
