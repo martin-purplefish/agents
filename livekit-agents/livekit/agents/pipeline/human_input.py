@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from enum import Enum
 from typing import Literal
 
 from livekit import rtc
@@ -19,6 +20,11 @@ EventTypes = Literal[
 ]
 
 
+class SpeechDetectionMode(str, Enum):
+    VAD = "vad"
+    STT = "stt"
+
+
 class HumanInput(utils.EventEmitter[EventTypes]):
     def __init__(
         self,
@@ -28,6 +34,7 @@ class HumanInput(utils.EventEmitter[EventTypes]):
         stt: speech_to_text.STT,
         participant: rtc.RemoteParticipant,
         transcription: bool,
+        speech_detection_mode: SpeechDetectionMode = SpeechDetectionMode.VAD,
     ) -> None:
         super().__init__()
         self._room, self._vad, self._stt, self._participant, self._transcription = (
@@ -41,7 +48,8 @@ class HumanInput(utils.EventEmitter[EventTypes]):
         self._recognize_atask: asyncio.Task[None] | None = None
 
         self._closed = False
-        self._speaking = False
+        self._vad_speaking = False
+        self._stt_speaking = False
         self._speech_probability = 0.0
 
         self._room.on("track_published", self._subscribe_to_microphone)
@@ -62,7 +70,14 @@ class HumanInput(utils.EventEmitter[EventTypes]):
 
     @property
     def speaking(self) -> bool:
-        return self._speaking
+        if self._speech_detection_mode == SpeechDetectionMode.VAD:
+            return self._vad_speaking
+        elif self._speech_detection_mode == SpeechDetectionMode.STT:
+            return self._stt_speaking
+        else:
+            raise ValueError(
+                f"Invalid speech detection mode: {self._speech_detection_mode}"
+            )
 
     @property
     def speaking_probability(self) -> float:
@@ -125,13 +140,13 @@ class HumanInput(utils.EventEmitter[EventTypes]):
         async def _vad_stream_co() -> None:
             async for ev in vad_stream:
                 if ev.type == voice_activity_detection.VADEventType.START_OF_SPEECH:
-                    self._speaking = True
+                    self._vad_speaking = True
                     self.emit("start_of_speech", ev)
                 elif ev.type == voice_activity_detection.VADEventType.INFERENCE_DONE:
                     self._speech_probability = ev.probability
                     self.emit("vad_inference_done", ev)
                 elif ev.type == voice_activity_detection.VADEventType.END_OF_SPEECH:
-                    self._speaking = False
+                    self._vad_speaking = False
                     self.emit("end_of_speech", ev)
 
         async def _stt_stream_co() -> None:
@@ -139,8 +154,10 @@ class HumanInput(utils.EventEmitter[EventTypes]):
                 stt_forwarder.update(ev)
 
                 if ev.type == speech_to_text.SpeechEventType.FINAL_TRANSCRIPT:
+                    self._stt_speaking = False
                     self.emit("final_transcript", ev)
                 elif ev.type == speech_to_text.SpeechEventType.INTERIM_TRANSCRIPT:
+                    self._stt_speaking = True
                     self.emit("interim_transcript", ev)
 
         tasks = [
