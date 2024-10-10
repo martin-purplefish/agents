@@ -1,5 +1,14 @@
 # livekit-agents
 
+## 0.10.2
+
+### Patch Changes
+
+- Allow forcing interruptions of incomplete audio - [#891](https://github.com/livekit/agents/pull/891) ([@martin-purplefish](https://github.com/martin-purplefish))
+
+- Simplify the play speech method by refactoring into smaller methods. - [`eb8e23672ada0320d14f6be5c4e36f252d7b493d`](https://github.com/livekit/agents/commit/eb8e23672ada0320d14f6be5c4e36f252d7b493d) ([@martin-purplefish](https://github.com/martin-purplefish))
+  Add error logging when function calls fail.
+
 ## 0.10.1
 
 ### Patch Changes
