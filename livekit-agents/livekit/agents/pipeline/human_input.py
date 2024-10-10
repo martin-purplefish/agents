@@ -51,6 +51,7 @@ class HumanInput(utils.EventEmitter[EventTypes]):
         self._vad_speaking = False
         self._stt_speaking = False
         self._speech_probability = 0.0
+        self._speech_detection_mode = speech_detection_mode
 
         self._room.on("track_published", self._subscribe_to_microphone)
         self._room.on("track_subscribed", self._subscribe_to_microphone)
