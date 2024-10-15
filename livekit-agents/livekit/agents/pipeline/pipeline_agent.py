@@ -697,8 +697,14 @@ class VoicePipelineAgent(utils.EventEmitter[EventTypes]):
                 )
                 try:
                     await called_fnc.task
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.exception(
+                        "error executing ai function",
+                        extra={
+                            "function": fnc.function_info.name,
+                            "speech_id": speech_handle.id,
+                        },
+                    )
 
             self.emit("function_calls_finished", called_fncs)
             _CallContextVar.reset(tk)
