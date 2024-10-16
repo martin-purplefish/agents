@@ -1,5 +1,13 @@
 # livekit-agents
 
+## 0.10.3
+
+### Patch Changes
+
+- stt: reduce bandwidth usage by reducing sample_rate to 16khz - [#920](https://github.com/livekit/agents/pull/920) ([@theomonnom](https://github.com/theomonnom))
+
+- Add exception logging for tool calls - [`b665fbf0fad61437a0c870c5d1843a23513ab4ac`](https://github.com/livekit/agents/commit/b665fbf0fad61437a0c870c5d1843a23513ab4ac) ([@martin-purplefish](https://github.com/martin-purplefish))
+
 ## 0.10.2
 
 ### Patch Changes
