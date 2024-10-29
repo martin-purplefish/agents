@@ -87,6 +87,9 @@ class SpeechHandle:
     def mark_speech_commited(self) -> None:
         self._speech_commited = True
 
+    def is_using_tools(self) -> bool:
+        return isinstance(self.source, LLMStream) and len(self.source.function_calls)
+
     @property
     def user_commited(self) -> bool:
         return self._user_commited

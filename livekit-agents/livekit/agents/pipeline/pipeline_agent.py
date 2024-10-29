@@ -628,16 +628,12 @@ class VoicePipelineAgent(utils.EventEmitter[EventTypes]):
             ):
                 return
 
-            is_using_tools = isinstance(speech_handle.source, LLMStream) and len(
-                speech_handle.source.function_calls
-            )
-
             # make sure at least some speech was played before committing the user message
             # since we try to validate as fast as possible it is possible the agent gets interrupted
             # really quickly (barely audible), we don't want to mark this question as "answered".
             if (
                 speech_handle.allow_interruptions
-                and not is_using_tools
+                and not speech_handle.is_using_tools
                 and (
                     play_handle.time_played < self.MIN_TIME_PLAYED_FOR_COMMIT
                     and not join_fut.done()
@@ -672,15 +668,12 @@ class VoicePipelineAgent(utils.EventEmitter[EventTypes]):
 
         collected_text = speech_handle.synthesis_handle.tts_forwarder.played_text
         interrupted = speech_handle.interrupted
-        is_using_tools = isinstance(speech_handle.source, LLMStream) and len(
-            speech_handle.source.function_calls
-        )
 
         extra_tools_messages = []  # additional messages from the functions to add to the context if needed
 
         # if the answer is using tools, execute the functions and automatically generate
         # a response to the user question from the returned values
-        if is_using_tools and not interrupted:
+        if speech_handle.is_using_tools and not interrupted:
             assert isinstance(speech_handle.source, LLMStream)
             assert (
                 not user_question or speech_handle.user_commited
