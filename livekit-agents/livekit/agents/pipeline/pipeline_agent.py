@@ -12,7 +12,7 @@ from .. import stt, tokenize, tts, utils, vad
 from .._constants import ATTRIBUTE_AGENT_STATE
 from .._types import AgentState
 from ..llm import LLM, ChatContext, ChatMessage, FunctionContext, LLMStream
-from .agent_output import AgentOutput, SpeechSource, SynthesisHandle
+from .agent_output import AgentOutput, PlayoutHandle, SpeechSource, SynthesisHandle
 from .agent_playout import AgentPlayout
 from .human_input import HumanInput
 from .log import logger
@@ -618,53 +618,8 @@ class VoicePipelineAgent(utils.EventEmitter[EventTypes]):
         user_question = speech_handle.user_question
 
         play_handle = synthesis_handle.play()
-        join_fut = play_handle.join()
 
-        def _commit_user_question_if_needed() -> None:
-            if (
-                not user_question
-                or synthesis_handle.interrupted
-                or speech_handle.user_commited
-            ):
-                return
-
-            # make sure at least some speech was played before committing the user message
-            # since we try to validate as fast as possible it is possible the agent gets interrupted
-            # really quickly (barely audible), we don't want to mark this question as "answered".
-            if (
-                speech_handle.allow_interruptions
-                and not speech_handle.is_using_tools
-                and (
-                    play_handle.time_played < self.MIN_TIME_PLAYED_FOR_COMMIT
-                    and not join_fut.done()
-                )
-            ):
-                return
-
-            logger.debug(
-                "committed user transcript", extra={"user_transcript": user_question}
-            )
-            user_msg = ChatMessage.create(text=user_question, role="user")
-            self._chat_ctx.messages.append(user_msg)
-            self.emit("user_speech_committed", user_msg)
-
-            self._transcribed_text = self._transcribed_text[len(user_question) :]
-            speech_handle.mark_user_commited()
-
-        # wait for the play_handle to finish and check every 1s if the user question should be committed
-        _commit_user_question_if_needed()
-
-        while not join_fut.done():
-            await asyncio.wait(
-                [join_fut], return_when=asyncio.FIRST_COMPLETED, timeout=0.5
-            )
-
-            _commit_user_question_if_needed()
-
-            if speech_handle.interrupted:
-                break
-
-        _commit_user_question_if_needed()
+        await self._wait_for_play_completion(speech_handle, play_handle)
 
         collected_text = speech_handle.synthesis_handle.tts_forwarder.played_text
         interrupted = speech_handle.interrupted
@@ -789,6 +744,58 @@ class VoicePipelineAgent(utils.EventEmitter[EventTypes]):
                     "speech_id": speech_handle.id,
                 },
             )
+
+    async def _wait_for_play_completion(
+        self, speech_handle: SpeechHandle, play_handle: PlayoutHandle
+    ) -> None:
+        user_question = speech_handle.user_question
+        join_fut = play_handle.join()
+
+        def _commit_user_question_if_needed() -> None:
+            if (
+                not user_question
+                or speech_handle.synthesis_handle.interrupted
+                or speech_handle.user_commited
+            ):
+                return
+
+            # make sure at least some speech was played before committing the user message
+            # since we try to validate as fast as possible it is possible the agent gets interrupted
+            # really quickly (barely audible), we don't want to mark this question as "answered".
+            if (
+                speech_handle.allow_interruptions
+                and not speech_handle.is_using_tools
+                and (
+                    play_handle.time_played < self.MIN_TIME_PLAYED_FOR_COMMIT
+                    and not join_fut.done()
+                )
+            ):
+                return
+
+            logger.debug(
+                "committed user transcript", extra={"user_transcript": user_question}
+            )
+            user_msg = ChatMessage.create(text=user_question, role="user")
+            self._chat_ctx.messages.append(user_msg)
+            self.emit("user_speech_committed", user_msg)
+
+            self._transcribed_text = self._transcribed_text[len(user_question) :]
+            speech_handle.mark_user_commited()
+
+        # wait for the play_handle to finish and check every 0.5s if the user question should be committed
+        _commit_user_question_if_needed()
+
+        while not join_fut.done():
+            await asyncio.wait(
+                [join_fut], return_when=asyncio.FIRST_COMPLETED, timeout=0.5
+            )
+
+            _commit_user_question_if_needed()
+
+            if speech_handle.interrupted:
+                break
+
+        _commit_user_question_if_needed()
 
     def _synthesize_agent_speech(
         self,
