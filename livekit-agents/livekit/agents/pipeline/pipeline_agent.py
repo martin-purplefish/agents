@@ -621,14 +621,11 @@ class VoicePipelineAgent(utils.EventEmitter[EventTypes]):
 
         await self._wait_for_play_completion(speech_handle, play_handle)
 
-        collected_text = speech_handle.synthesis_handle.tts_forwarder.played_text
-        interrupted = speech_handle.interrupted
-
         extra_tools_messages = []  # additional messages from the functions to add to the context if needed
 
         # if the answer is using tools, execute the functions and automatically generate
         # a response to the user question from the returned values
-        if speech_handle.is_using_tools and not interrupted:
+        if speech_handle.is_using_tools and not speech_handle.interrupted:
             assert isinstance(speech_handle.source, LLMStream)
             assert (
                 not user_question or speech_handle.user_commited
@@ -686,7 +683,9 @@ class VoicePipelineAgent(utils.EventEmitter[EventTypes]):
 
                 # generate an answer from the tool calls
                 extra_tools_messages.append(
-                    ChatMessage.create_tool_calls(tool_calls_info, text=collected_text)
+                    ChatMessage.create_tool_calls(
+                        tool_calls_info, text=speech_handle.collected_text()
+                    )
                 )
                 extra_tools_messages.extend(tool_calls_results)
 
@@ -707,8 +706,6 @@ class VoicePipelineAgent(utils.EventEmitter[EventTypes]):
                 play_handle = answer_synthesis.play()
                 await play_handle.join()
 
-                collected_text = answer_synthesis.tts_forwarder.played_text
-                interrupted = answer_synthesis.interrupted
                 new_function_calls = answer_llm_stream.function_calls
 
                 self.emit("function_calls_finished", called_fncs)
@@ -723,15 +720,14 @@ class VoicePipelineAgent(utils.EventEmitter[EventTypes]):
         ):
             self._chat_ctx.messages.extend(extra_tools_messages)
 
-            if interrupted:
-                collected_text += "..."
-
-            msg = ChatMessage.create(text=collected_text, role="assistant")
+            msg = ChatMessage.create(
+                text=speech_handle.collected_text(), role="assistant"
+            )
             self._chat_ctx.messages.append(msg)
 
             speech_handle.mark_speech_commited()
 
-            if interrupted:
+            if speech_handle.interrupted:
                 self.emit("agent_speech_interrupted", msg)
             else:
                 self.emit("agent_speech_committed", msg)
@@ -739,8 +735,8 @@ class VoicePipelineAgent(utils.EventEmitter[EventTypes]):
             logger.debug(
                 "committed agent speech",
                 extra={
-                    "agent_transcript": collected_text,
-                    "interrupted": interrupted,
+                    "agent_transcript": speech_handle.collected_text(),
+                    "interrupted": speech_handle.interrupted,
                     "speech_id": speech_handle.id,
                 },
             )
