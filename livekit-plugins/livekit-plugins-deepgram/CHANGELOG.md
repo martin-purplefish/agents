@@ -1,5 +1,11 @@
 # livekit-plugins-deepgram
 
+## 0.6.15
+
+### Patch Changes
+
+- Support Deepgram TTS - [#1201](https://github.com/livekit/agents/pull/1201) ([@jayeshp19](https://github.com/jayeshp19))
+
 ## 0.6.14
 
 ### Patch Changes
