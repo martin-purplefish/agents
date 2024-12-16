@@ -1,5 +1,21 @@
 # livekit-plugins-openai
 
+## 0.10.11
+
+### Patch Changes
+
+- add on_duplicate option for multimodal agent response create - [#1204](https://github.com/livekit/agents/pull/1204) ([@longcw](https://github.com/longcw))
+
+- Add support for OpenAI's "detail" parameter to ChatImage - [#1213](https://github.com/livekit/agents/pull/1213) ([@bcherry](https://github.com/bcherry))
+
+  Add support for data URLs on ChatImage in the Anthropic plugin.
+
+- added llama 3.3 70b to model definitions - [#1233](https://github.com/livekit/agents/pull/1233) ([@davidzhao](https://github.com/davidzhao))
+
+- Fix center_aspect_fit bug, add scale_aspect_fit and scale_aspect_fill resizing options. - [#1222](https://github.com/livekit/agents/pull/1222) ([@bcherry](https://github.com/bcherry))
+
+  Make scale_aspect_fit the new default resizing option for video frames.
+
 ## 0.10.10
 
 ### Patch Changes
