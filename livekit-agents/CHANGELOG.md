@@ -1,5 +1,13 @@
 # livekit-agents
 
+## 0.12.8
+
+### Patch Changes
+
+- add timeout for EOU inference requests made to the inference process - [#1315](https://github.com/livekit/agents/pull/1315) ([@theomonnom](https://github.com/theomonnom))
+
+- Forward events for partial and final transcript from human input - [`207840d107235bbe0b52e8ba5d83b1d244539d64`](https://github.com/livekit/agents/commit/207840d107235bbe0b52e8ba5d83b1d244539d64) ([@martin-purplefish](https://github.com/martin-purplefish))
+
 ## 0.12.7
 
 ### Patch Changes
