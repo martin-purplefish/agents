@@ -869,6 +869,7 @@ class VoicePipelineAgent(utils.EventEmitter[EventTypes]):
                         "fnc_nested_depth": speech_handle.fnc_nested_depth,
                     },
                 )
+                speech_handle.mark_nested_speech_finished()
                 return
 
             assert isinstance(speech_handle.source, LLMStream)
@@ -923,6 +924,11 @@ class VoicePipelineAgent(utils.EventEmitter[EventTypes]):
                 )
 
             if not tool_calls_info:
+                logger.debug(
+                    "no tool calls info, marking nested speech as finished",
+                    extra={"speech_id": speech_handle.id},
+                )
+                speech_handle.mark_nested_speech_finished()
                 return
 
             # create a nested speech handle
