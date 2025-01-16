@@ -1,5 +1,13 @@
 # livekit-agents
 
+## 0.12.9
+
+### Patch Changes
+
+- Forward events for partial and final transcript from human input - [`207840d107235bbe0b52e8ba5d83b1d244539d64`](https://github.com/livekit/agents/commit/207840d107235bbe0b52e8ba5d83b1d244539d64) ([@martin-purplefish](https://github.com/martin-purplefish))
+
+- remove aiodns from livekit-agents - [#1368](https://github.com/livekit/agents/pull/1368) ([@theomonnom](https://github.com/theomonnom))
+
 ## 0.12.8
 
 ### Patch Changes
