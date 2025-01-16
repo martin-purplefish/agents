@@ -727,6 +727,12 @@ class VoicePipelineAgent(utils.EventEmitter[EventTypes]):
                 # the speech is playing but not committed yet, add it to the chat context for this new reply synthesis
                 # First add the previous function call message if any
                 if playing_speech.extra_tools_messages:
+                    if playing_speech.fnc_text_message_id is not None:
+                        # there is a message alongside the function calls
+                        msgs = copied_ctx.messages
+                        if msgs and msgs[-1].id == playing_speech.fnc_text_message_id:
+                            # replace it with the tool call message if it's the last in the ctx
+                            msgs.pop()
                     copied_ctx.messages.extend(playing_speech.extra_tools_messages)
 
                 # Then add the previous assistant message
@@ -876,6 +882,7 @@ class VoicePipelineAgent(utils.EventEmitter[EventTypes]):
                     },
                 )
 
+        @utils.log_exceptions(logger=logger)
         async def _execute_function_calls() -> None:
             nonlocal interrupted, collected_text
 
@@ -895,9 +902,9 @@ class VoicePipelineAgent(utils.EventEmitter[EventTypes]):
                 return
 
             assert isinstance(speech_handle.source, LLMStream)
-            assert (
-                not user_question or speech_handle.user_committed
-            ), "user speech should have been committed before using tools"
+            assert not user_question or speech_handle.user_committed, (
+                "user speech should have been committed before using tools"
+            )
 
             llm_stream = speech_handle.source
 
@@ -1001,6 +1008,7 @@ class VoicePipelineAgent(utils.EventEmitter[EventTypes]):
             speech_handle._set_done()
             return
 
+        speech_handle._nested_speech_done_fut = asyncio.Future[None]()
         fnc_task = asyncio.create_task(_execute_function_calls())
         while not speech_handle.nested_speech_done:
             nesting_changed = asyncio.create_task(
@@ -1046,9 +1054,9 @@ class VoicePipelineAgent(utils.EventEmitter[EventTypes]):
         speech_id: str,
         source: str | LLMStream | AsyncIterable[str],
     ) -> SynthesisHandle:
-        assert (
-            self._agent_output is not None
-        ), "agent output should be initialized when ready"
+        assert self._agent_output is not None, (
+            "agent output should be initialized when ready"
+        )
 
         tk = SpeechDataContextVar.set(SpeechData(speech_id))
 

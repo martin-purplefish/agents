@@ -16,57 +16,37 @@ import os
 import pathlib
 
 import setuptools
+import setuptools.command.build_py
 
 here = pathlib.Path(__file__).parent.resolve()
 about = {}
-with open(os.path.join(here, "livekit", "agents", "version.py"), "r") as f:
+with open(os.path.join(here, "livekit", "plugins", "rime", "version.py"), "r") as f:
     exec(f.read(), about)
 
 
 setuptools.setup(
-    name="livekit-agents",
+    name="livekit-plugins-rime",
     version=about["__version__"],
-    description="LiveKit Python Agents",
+    description="LiveKit Agents Plugin for Rime",
     long_description=(here / "README.md").read_text(encoding="utf-8"),
     long_description_content_type="text/markdown",
     url="https://github.com/livekit/agents",
     cmdclass={},
     classifiers=[
         "Intended Audience :: Developers",
-        "License :: OSI Approved :: Apache Software License",
         "Topic :: Multimedia :: Sound/Audio",
-        "Topic :: Multimedia :: Video",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.9",
-        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
         "Programming Language :: Python :: 3 :: Only",
     ],
-    keywords=["webrtc", "realtime", "audio", "video", "livekit", "agents", "AI"],
+    keywords=["webrtc", "realtime", "audio", "video", "livekit", "rime"],
     license="Apache-2.0",
     packages=setuptools.find_namespace_packages(include=["livekit.*"]),
     python_requires=">=3.9.0",
-    install_requires=[
-        "click~=8.1",
-        "livekit>=0.18.1",
-        "livekit-api~=0.8",
-        "livekit-protocol~=0.7",
-        "protobuf>=3",
-        "pyjwt>=2.0.0",
-        "types-protobuf>=4,<5",
-        "watchfiles~=0.22",
-        "psutil~=5.9",
-        "aiohttp~=3.10",
-        "typing-extensions~=4.12",
-    ],
-    extras_require={
-        ':sys_platform=="win32"': [
-            "colorama"
-        ],  # fix logs color on windows (devmode only)
-        "codecs": ["av>=12.0.0", "numpy>=1.26.0"],
-        "images": ["pillow>=10.3.0"],
-    },
-    package_data={"livekit.agents": ["py.typed"]},
+    install_requires=["livekit-agents[codecs]>=0.12.3"],
+    package_data={"livekit.plugins.rime": ["py.typed"]},
     project_urls={
         "Documentation": "https://docs.livekit.io",
         "Website": "https://livekit.io/",
