@@ -1,5 +1,11 @@
 # livekit-plugins-google
 
+## 0.10.2
+
+### Patch Changes
+
+- chore: Replace ValueError with logger.warning for missing GOOGLE_APPLICATION_CREDENTIALS environment variable - [#1415](https://github.com/livekit/agents/pull/1415) ([@hironow](https://github.com/hironow))
+
 ## 0.10.1
 
 ### Patch Changes
