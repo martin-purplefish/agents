@@ -575,7 +575,7 @@ class Worker(utils.EventEmitter[EventTypes]):
 
         await self._proc_pool.launch_job(running_info)
 
-    async def aclose(self, reason: str) -> None:
+    async def aclose(self) -> None:
         if self._closed:
             if self._close_future is not None:
                 await self._close_future
