@@ -581,7 +581,7 @@ class Worker(utils.EventEmitter[EventTypes]):
                 await self._close_future
             return
 
-        logger.info("shutting down worker", extra={"id": self.id, "reason": reason})
+        logger.info("shutting down worker", extra={"id": self.id})
 
         assert self._close_future is not None
         assert self._http_session is not None
