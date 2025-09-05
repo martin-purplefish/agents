@@ -501,7 +501,9 @@ class Worker(utils.EventEmitter[EventTypes]):
 
         if timeout:
             try:
-                await asyncio.wait_for(_join_jobs(), timeout)  # raises asyncio.TimeoutError on timeout
+                await asyncio.wait_for(
+                    _join_jobs(), timeout
+                )  # raises asyncio.TimeoutError on timeout
                 logger.info("joined jobs", extra={"id": self.id})
             except asyncio.TimeoutError:
                 logger.warning("timed out joining jobs", extra={"id": self.id, "timeout": timeout})

@@ -185,7 +185,9 @@ class ThreadJobExecutor:
 
         self._closing = True
         with contextlib.suppress(utils.aio.duplex_unix.DuplexClosed):
-            await channel.asend_message(self._pch, proto.ShutdownRequest("JobThreadExecutor.aclose()"))
+            await channel.asend_message(
+                self._pch, proto.ShutdownRequest("JobThreadExecutor.aclose()")
+            )
 
         try:
             if self._main_atask:
